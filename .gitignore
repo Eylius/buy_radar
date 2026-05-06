@@ -1,0 +1,6 @@
+.venv/
+.tmp/
+.selenium-cache/
+chromedriver/
+__pycache__/
+*.pyc
