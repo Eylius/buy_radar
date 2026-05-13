@@ -17,6 +17,7 @@ PAGES = [
     "/latest-ceo-cfo-purchases-25k",
     "/latest-cluster-buys",
 ]
+SKIP_COLUMNS = {"1d", "1w", "1m", "6m"}
 
 
 def load_table_rows(driver, path):
@@ -38,12 +39,15 @@ def load_table_rows(driver, path):
         key=lambda current_table: len(current_table.find_elements(By.CSS_SELECTOR, "tbody tr")),
     )
     headers = [read_text(cell) for cell in table.find_elements(By.CSS_SELECTOR, "thead th")]
+    keep_indexes = [index for index, header in enumerate(headers) if header not in SKIP_COLUMNS]
+    kept_headers = [headers[index] for index in keep_indexes]
 
     rows = []
     for row in table.find_elements(By.CSS_SELECTOR, "tbody tr"):
         values = [read_text(cell) for cell in row.find_elements(By.TAG_NAME, "td")]
         if values and any(values):
-            rows.append(dict(zip(headers, values)))
+            kept_values = [values[index] for index in keep_indexes]
+            rows.append(dict(zip(kept_headers, kept_values)))
 
     return rows
 
