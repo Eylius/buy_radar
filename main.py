@@ -118,15 +118,22 @@ class BuyRadarWindow(QWidget):
             self.status_label.setText(f"{len(rows)} von {len(self.current_rows)} Einträgen angezeigt.")
 
     def matches_delta_own_filter(self, row, mode, threshold):
-        value = self.parse_percent(row.get("DeltaOwn", ""))
+        value = self.parse_percent(self.get_delta_own_text(row))
         if value is None:
             return False
         if mode == "Above":
             return value >= threshold
         return value <= threshold
 
+    def get_delta_own_text(self, row):
+        for key, value in row.items():
+            normalized_key = key.lower().replace("Â", "").replace("Î", "")
+            if "own" in normalized_key and "owned" not in normalized_key:
+                return value
+        return ""
+
     def parse_percent(self, text):
-        cleaned_text = text.replace("%", "").replace(",", "").strip()
+        cleaned_text = text.replace("%", "").replace(",", "").replace("+", "").strip()
         if not cleaned_text:
             return None
 
