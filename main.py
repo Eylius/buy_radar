@@ -1,75 +1,118 @@
-import json
-from pathlib import Path
+import sys
 
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-
-BASE_URL = "http://openinsider.com"
-PAGES = [
-    "/latest-insider-sales-100k",
-    "/latest-officer-sales-100k",
-    "/latest-ceo-cfo-sales-100k",
-    "/latest-insider-purchases-25k",
-    "/latest-officer-purchases-25k",
-    "/latest-ceo-cfo-purchases-25k",
-    "/latest-cluster-buys",
-]
-SKIP_COLUMNS = {"1d", "1w", "1m", "6m"}
+from scraper import CATEGORIES, load_category_data, scrape_category
 
 
-def load_table_rows(driver, path):
-    for _ in range(3):
-        driver.get(f"{BASE_URL}{path}")
+class BuyRadarWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Buy Radar")
+        self.resize(1100, 650)
+
+        self.category_box = QComboBox()
+        self.category_box.addItems(CATEGORIES.keys())
+        self.category_box.currentTextChanged.connect(self.load_selected_data)
+
+        self.load_button = QPushButton("Gespeicherte Daten laden")
+        self.load_button.clicked.connect(self.load_selected_data)
+
+        self.scrape_button = QPushButton("Neu scrapen")
+        self.scrape_button.clicked.connect(self.scrape_selected_data)
+
+        self.status_label = QLabel("Keine Daten geladen.")
+
+        self.table = QTableWidget()
+        self.table.setAlternatingRowColors(True)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(QLabel("Kategorie:"))
+        top_layout.addWidget(self.category_box)
+        top_layout.addWidget(self.load_button)
+        top_layout.addWidget(self.scrape_button)
+
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(top_layout)
+        main_layout.addWidget(self.status_label)
+        main_layout.addWidget(self.table)
+        self.setLayout(main_layout)
+
+        self.load_selected_data()
+
+    def selected_category(self):
+        return self.category_box.currentText()
+
+    def load_selected_data(self):
+        category_name = self.selected_category()
+        rows = load_category_data(category_name)
+        self.show_rows(rows)
+
+        if rows:
+            self.status_label.setText(f"{len(rows)} gespeicherte Einträge für '{category_name}' geladen.")
+        else:
+            self.status_label.setText(f"Keine gespeicherten Daten für '{category_name}' gefunden.")
+
+    def scrape_selected_data(self):
+        category_name = self.selected_category()
+        self.set_controls_enabled(False)
+        self.status_label.setText(f"Scraping läuft: {category_name}")
+        QApplication.processEvents()
+
         try:
-            WebDriverWait(driver, 20).until(
-                lambda current_driver: current_driver.find_elements(By.CSS_SELECTOR, "table.tinytable")
-            )
-            break
-        except TimeoutException:
-            continue
-    else:
-        raise TimeoutException(f"Could not load table for {path}")
+            rows = scrape_category(category_name)
+        except Exception as error:
+            QMessageBox.critical(self, "Fehler", str(error))
+            self.status_label.setText(f"Fehler beim Scraping von '{category_name}'.")
+        else:
+            self.show_rows(rows)
+            self.status_label.setText(f"{len(rows)} Einträge für '{category_name}' gescrapt und gespeichert.")
+        finally:
+            self.set_controls_enabled(True)
 
-    tables = driver.find_elements(By.CSS_SELECTOR, "table.tinytable")
-    table = max(
-        tables,
-        key=lambda current_table: len(current_table.find_elements(By.CSS_SELECTOR, "tbody tr")),
-    )
-    headers = [read_text(cell) for cell in table.find_elements(By.CSS_SELECTOR, "thead th")]
-    keep_indexes = [index for index, header in enumerate(headers) if header not in SKIP_COLUMNS]
-    kept_headers = [headers[index] for index in keep_indexes]
+    def set_controls_enabled(self, enabled):
+        self.category_box.setEnabled(enabled)
+        self.load_button.setEnabled(enabled)
+        self.scrape_button.setEnabled(enabled)
 
-    rows = []
-    for row in table.find_elements(By.CSS_SELECTOR, "tbody tr"):
-        values = [read_text(cell) for cell in row.find_elements(By.TAG_NAME, "td")]
-        if values and any(values):
-            kept_values = [values[index] for index in keep_indexes]
-            rows.append(dict(zip(kept_headers, kept_values)))
+    def show_rows(self, rows):
+        self.table.clear()
 
-    return rows
+        if not rows:
+            self.table.setRowCount(0)
+            self.table.setColumnCount(0)
+            return
 
+        headers = list(rows[0].keys())
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+        self.table.setRowCount(len(rows))
 
-def read_text(cell):
-    return cell.get_attribute("textContent").strip()
+        for row_index, row in enumerate(rows):
+            for column_index, header in enumerate(headers):
+                self.table.setItem(row_index, column_index, QTableWidgetItem(row.get(header, "")))
 
-
-def write_output(path, data):
-    filename = f"output_{path.removeprefix('/').replace('-', '_')}.json"
-    Path(filename).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        self.table.resizeColumnsToContents()
 
 
 def main():
-    driver = webdriver.Chrome()
-
-    try:
-        for path in PAGES:
-            rows = load_table_rows(driver, path)
-            write_output(path, rows)
-    finally:
-        driver.quit()
+    app = QApplication(sys.argv)
+    window = BuyRadarWindow()
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
