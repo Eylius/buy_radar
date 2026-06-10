@@ -23,6 +23,7 @@ class BuyRadarWindow(QWidget):
         self.setWindowTitle("Buy Radar")
         self.resize(1100, 650)
         self.current_rows = []
+        self.active_text_filter = None
 
         self.category_box = QComboBox()
         self.category_box.addItems(CATEGORIES.keys())
@@ -46,6 +47,7 @@ class BuyRadarWindow(QWidget):
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.cellClicked.connect(self.handle_table_click)
 
         top_layout = QHBoxLayout()
         top_layout.addWidget(QLabel("Kategorie:"))
@@ -71,6 +73,7 @@ class BuyRadarWindow(QWidget):
     def load_selected_data(self):
         category_name = self.selected_category()
         self.current_rows = load_category_data(category_name)
+        self.active_text_filter = None
         self.apply_filter()
 
         if self.current_rows:
@@ -86,6 +89,7 @@ class BuyRadarWindow(QWidget):
 
         try:
             self.current_rows = scrape_category(category_name)
+            self.active_text_filter = None
         except Exception as error:
             QMessageBox.critical(self, "Fehler", str(error))
             self.status_label.setText(f"Fehler beim Scraping von '{category_name}'.")
@@ -131,10 +135,18 @@ class BuyRadarWindow(QWidget):
         if mode != "Alle":
             rows = [row for row in rows if self.matches_delta_own_filter(row, mode, threshold)]
 
+        if self.active_text_filter is not None:
+            filter_key, filter_value = self.active_text_filter
+            rows = [row for row in rows if row.get(filter_key, "") == filter_value]
+
         self.show_rows(rows)
 
         if self.current_rows:
-            self.status_label.setText(f"{len(rows)} von {len(self.current_rows)} Einträgen angezeigt.")
+            status_text = f"{len(rows)} von {len(self.current_rows)} Einträgen angezeigt."
+            if self.active_text_filter is not None:
+                _, filter_value = self.active_text_filter
+                status_text += f" Filter: {filter_value}"
+            self.status_label.setText(status_text)
 
     def matches_delta_own_filter(self, row, mode, threshold):
         value = self.parse_percent(self.get_delta_own_text(row))
@@ -160,6 +172,27 @@ class BuyRadarWindow(QWidget):
             return float(cleaned_text)
         except ValueError:
             return None
+
+    def handle_table_click(self, row_index, column_index):
+        header_item = self.table.horizontalHeaderItem(column_index)
+        cell_item = self.table.item(row_index, column_index)
+
+        if header_item is None or cell_item is None:
+            return
+
+        header_text = header_item.text().lower()
+        if "company" not in header_text and "insider" not in header_text:
+            return
+
+        filter_key = header_item.text()
+        filter_value = cell_item.text()
+
+        if self.active_text_filter == (filter_key, filter_value):
+            self.active_text_filter = None
+        else:
+            self.active_text_filter = (filter_key, filter_value)
+
+        self.apply_filter()
 
     def show_rows(self, rows):
         self.table.clear()
