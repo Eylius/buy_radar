@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 output_*.json
 data/*.json
+praesentations_doku.md
