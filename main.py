@@ -36,10 +36,9 @@ class BuyRadarWindow(QWidget):
 
         self.filter_mode_box = QComboBox()
         self.filter_mode_box.addItems(["Alle", "Above", "Below"])
-        self.filter_mode_box.currentTextChanged.connect(self.apply_filter)
+        self.filter_mode_box.currentTextChanged.connect(self.update_filter_values)
 
         self.filter_value_box = QComboBox()
-        self.filter_value_box.addItems([f"{value}%" for value in range(0, 101, 10)])
         self.filter_value_box.currentTextChanged.connect(self.apply_filter)
 
         self.status_label = QLabel("Keine Daten geladen.")
@@ -63,6 +62,7 @@ class BuyRadarWindow(QWidget):
         main_layout.addWidget(self.table)
         self.setLayout(main_layout)
 
+        self.update_filter_values()
         self.load_selected_data()
 
     def selected_category(self):
@@ -103,6 +103,25 @@ class BuyRadarWindow(QWidget):
         self.scrape_button.setEnabled(enabled)
         self.filter_mode_box.setEnabled(enabled)
         self.filter_value_box.setEnabled(enabled)
+
+    def update_filter_values(self):
+        mode = self.filter_mode_box.currentText()
+        current_value = self.filter_value_box.currentText()
+
+        if mode == "Below":
+            values = ["0%"] + [f"{value}%" for value in range(-10, -101, -10)]
+        else:
+            values = [f"{value}%" for value in range(0, 101, 10)]
+
+        self.filter_value_box.blockSignals(True)
+        self.filter_value_box.clear()
+        self.filter_value_box.addItems(values)
+
+        if current_value in values:
+            self.filter_value_box.setCurrentText(current_value)
+
+        self.filter_value_box.blockSignals(False)
+        self.apply_filter()
 
     def apply_filter(self):
         rows = self.current_rows
