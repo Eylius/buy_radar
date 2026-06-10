@@ -11,13 +11,13 @@ BASE_URL = "http://openinsider.com"
 DATA_DIR = Path("data")
 SKIP_COLUMNS = {"1d", "1w", "1m", "6m"}
 CATEGORIES = {
-    "Insider Sales 100k": "/latest-insider-sales-100k",
-    "Officer Sales 100k": "/latest-officer-sales-100k",
-    "CEO/CFO Sales 100k": "/latest-ceo-cfo-sales-100k",
-    "Insider Purchases 25k": "/latest-insider-purchases-25k",
-    "Officer Purchases 25k": "/latest-officer-purchases-25k",
-    "CEO/CFO Purchases 25k": "/latest-ceo-cfo-purchases-25k",
-    "Cluster Buys": "/latest-cluster-buys",
+    "Insider Sales 100k": "/screener?fd=730&td=0&xs=1&vl=100&cnt=1000&page=1",
+    "Officer Sales 100k": "/screener?fd=730&td=0&xs=1&vl=100&isofficer=1&cnt=1000&page=1",
+    "CEO/CFO Sales 100k": "/screener?fd=730&td=0&xs=1&vl=100&isceo=1&iscfo=1&cnt=1000&page=1",
+    "Insider Purchases 25k": "/screener?fd=730&td=0&xp=1&vl=25&cnt=1000&page=1",
+    "Officer Purchases 25k": "/screener?fd=730&td=0&xp=1&vl=25&isofficer=1&cnt=1000&page=1",
+    "CEO/CFO Purchases 25k": "/screener?fd=730&td=0&xp=1&vl=25&isceo=1&iscfo=1&cnt=1000&page=1",
+    "Cluster Buys": "/screener?pl=3&fd=90&td=0&fdlyh=6&xp=1&vl=25&ocl=1&sic1=-1&sicl=100&sich=9999&grp=2&nil=2&nol=1&sortcol=0&cnt=1000&page=1",
 }
 
 
